@@ -1,0 +1,36 @@
+[package]
+name = "libtas"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description.workspace = true
+license.workspace = true
+publish.workspace = true
+
+# [dependencies]
+
+[dev-dependencies]
+regex = { version = "1.10" } # MIT
+
+# [features]
+
+[profile.dev]
+opt-level = 1
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
+
+[workspace]
+members = ["tas"]
+
+[workspace.package]
+version = "0.1.0"
+authors = ["ylsun <y15un@y15un.dog>"]
+edition = "2021"
+rust-version = "1.65.0"
+description = "my own attempt on a toy compiler that emits 32-bit ARM assembly code from a subset of TypeScript"
+license = "MIT OR Apache-2.0"
+publish = false

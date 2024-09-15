@@ -1,0 +1,9 @@
+# ignore target and lockfile (for now)
+target/
+Cargo.lock
+
+# ignore editor-related stuff
+*.code-workspace
+
+# ignore book
+*.pdf
