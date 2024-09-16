@@ -18,6 +18,35 @@ where
     }
 }
 
+#[derive(Clone, Debug)]
+pub enum Parser<'source, T>
+where
+    T: Clone + Debug + PartialEq + PartialOrd,
+{
+    Regexp {
+        parse: fn(Source<'source>, &'source Regex) -> Option<ParseResult<'source, T>>,
+        regex: &'source Regex,
+    },
+}
+impl<'source, T> Parser<'source, T>
+where
+    T: Clone + Debug + PartialEq + PartialOrd,
+{
+    pub fn parse(&self, source: Source<'source>) -> Option<ParseResult<'source, T>> {
+        match *self {
+            Self::Regexp { parse, regex } => parse(source, regex),
+        }
+    }
+}
+impl<'source> Parser<'source, &'source str> {
+    pub fn regexp(regexp: &'source Regex) -> Self {
+        Self::Regexp {
+            parse: |source, regex| source.sticky_match(regex),
+            regex: regexp,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Source<'source> {
     pub string: &'source str,
@@ -49,6 +78,20 @@ impl<'source> Source<'source> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_parser_regexp() {
+        let mut source = Source::new("Hello hello!");
+        let regex_hello = Regex::new(r"^\s*[Hh]ello\s*").unwrap();
+
+        let parser_regexp = Parser::regexp(&regex_hello);
+        while let Some(pr) = parser_regexp.parse(source) {
+            println!("matched: {:?}", pr.value);
+            println!("new index: {}", pr.source.index);
+
+            source = pr.source;
+        }
+    }
 
     #[test]
     fn test_source_sticky_match() {

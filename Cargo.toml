@@ -8,10 +8,10 @@ description.workspace = true
 license.workspace = true
 publish.workspace = true
 
-# [dependencies]
-
-[dev-dependencies]
+[dependencies]
 regex = { version = "1.10" } # MIT
+
+# [dev-dependencies]
 
 # [features]
 
