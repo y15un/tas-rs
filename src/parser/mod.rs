@@ -23,6 +23,19 @@ pub enum Parser<'source, T>
 where
     T: Clone + Debug + PartialEq + PartialOrd,
 {
+    Constant {
+        parse: fn(Source<'source>, &'source T) -> Option<ParseResult<'source, T>>,
+        value: &'source T,
+    },
+    Error {
+        parse: fn(Source<'source>, &'static str) -> !,
+        message: &'static str,
+    },
+    Or {
+        parse: fn(Source<'source>, &Self, &Self) -> Option<ParseResult<'source, T>>,
+        left: &'source Parser<'source, T>,
+        right: &'source Parser<'source, T>,
+    },
     Regexp {
         parse: fn(Source<'source>, &'source Regex) -> Option<ParseResult<'source, T>>,
         regex: &'source Regex,
@@ -32,8 +45,46 @@ impl<'source, T> Parser<'source, T>
 where
     T: Clone + Debug + PartialEq + PartialOrd,
 {
+    pub fn constant(value: &'source T) -> Self {
+        Self::Constant {
+            // FIXME: i don't like the `value` getting cloned. if i am certain everything that is
+            //        returned within ParseResult are under `'source` lifetime, then i can maybe
+            //        replace `ParseResult<'source, T>` signature to
+            //        `ParseResult<'source, &'source T>`.
+            parse: |source, value| Some(ParseResult::new(value.clone(), source)),
+            value,
+        }
+    }
+
+    pub fn error(message: &'static str) -> Self {
+        Self::Error {
+            // TODO: for now, we ignore Source, but maybe later we could use it to display
+            //       offending location and such.
+            parse: |_: Source<'source>, message| panic!("{}", message),
+            message,
+        }
+    }
+
+    pub fn or(&'source self, right: &'source Self) -> Self {
+        Self::Or {
+            parse: |source, left, right| {
+                let result = left.parse(source);
+                if result.is_some() {
+                    result
+                } else {
+                    right.parse(source)
+                }
+            },
+            left: self,
+            right,
+        }
+    }
+
     pub fn parse(&self, source: Source<'source>) -> Option<ParseResult<'source, T>> {
         match *self {
+            Self::Constant { parse, value } => parse(source, value),
+            Self::Error { parse, message } => parse(source, message),
+            Self::Or { parse, left, right } => parse(source, left, right),
             Self::Regexp { parse, regex } => parse(source, regex),
         }
     }
@@ -78,6 +129,23 @@ impl<'source> Source<'source> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_parser_or() {
+        let source = Source::new("q1w2f3p4g5");
+
+        let regex_alpha = Regex::new(r"^[A-Za-z]").unwrap();
+        let regex_digit = Regex::new(r"^[0-9]").unwrap();
+
+        let parser_alpha = Parser::regexp(&regex_alpha);
+        let parser_digit = Parser::regexp(&regex_digit);
+        let parser_or = parser_alpha.or(&parser_digit);
+
+        while let Some(pr) = parser_or.parse(source) {
+            println!("matched: {:?}", pr.value);
+            println!("new index: {}", pr.source.index);
+        }
+    }
 
     #[test]
     fn test_parser_regexp() {
